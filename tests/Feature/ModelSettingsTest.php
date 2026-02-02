@@ -21,15 +21,6 @@ enum Channel: string
     case Slack = 'slack';
 }
 
-class UserNotificationPreferences extends Settings
-{
-    public function __construct(
-        public Frequency $frequency = Frequency::Daily,
-        #[AsCollection(Channel::class)]
-        public array $channels = [Channel::Email]
-    ) {}
-}
-
 class UserPreferences extends Settings
 {
     public function __construct(
@@ -37,6 +28,9 @@ class UserPreferences extends Settings
         public bool $notifications_enabled = true,
         public int $items_per_page = 10,
         public array $custom_colors = [],
+        public Frequency $frequency = Frequency::Daily,
+        #[AsCollection(Channel::class)]
+        public array $channels = [Channel::Email]
     ) {}
 }
 
@@ -50,7 +44,6 @@ class FeatureUser extends Model
 
     protected $casts = [
         'preferences' => UserPreferences::class,
-        'notifications' => UserNotificationPreferences::class,
     ];
 }
 
@@ -59,7 +52,6 @@ beforeEach(function () {
         $table->id();
         $table->string('name');
         $table->settingColumn('preferences');
-        $table->settingColumn('notifications');
     });
 });
 
@@ -127,7 +119,7 @@ test('it updates settings via object mutation and save', function () {
 test('it handles frequency enums correctly', function () {
     $user = FeatureUser::create([
         'name' => 'Alert User',
-        'preferences' => new UserNotificationPreferences(
+        'preferences' => new UserPreferences(
             frequency: Frequency::Immediate,
         ),
     ]);
@@ -166,7 +158,7 @@ test('it fails when an invalid frequency string is provided', function () {
 test('it handles a collection of enums correctly', function () {
     $user = FeatureUser::create([
         'name' => 'Multi-Channel User',
-        'preferences' => new UserNotificationPreferences(
+        'preferences' => new UserPreferences(
             channels: [Channel::Email, Channel::Slack]
         ),
     ]);
@@ -207,7 +199,6 @@ test('it ignores extra data in the json that is not defined in the class', funct
             'theme' => 'dark',
             'deprecated_legacy_key' => 'some value'
         ]),
-        'notifications' => json_encode([]),
     ]);
 
     $user = FeatureUser::where('name', 'Messy User')->first();
@@ -246,7 +237,6 @@ test('it uses default values for keys missing in the database', function () {
     DB::table('feature_users')->insert([
         'name' => 'Old User',
         'preferences' => json_encode(['theme' => 'dark']),
-        'notifications' => json_encode([]),
     ]);
 
     $user = FeatureUser::where('name', 'Old User')->first();
@@ -268,12 +258,19 @@ test('it handles nested array data', function () {
 });
 
 test('it maintains structural integrity when saving without changes', function () {
-    $initialData = ['theme' => 'dark', 'notifications_enabled' => true, 'items_per_page' => 10];
+    $initialData = [
+        'theme' => 'dark',
+        'notifications_enabled' => true,
+        'items_per_page' => 10,
+        'custom_colors' => [],
+        'frequency' => 'daily',
+        'channels' => ['email']
+    ];
+
     $user = FeatureUser::create(['name' => 'Consistent', 'preferences' => $initialData]);
 
-    $user->save();
-
     $dbValue = DB::table('feature_users')->where('id', $user->id)->value('preferences');
+
     expect(json_decode($dbValue, true))->toEqual($initialData);
 });
 
@@ -293,7 +290,6 @@ test('it throws an exception when json is corrupt', function () {
     DB::table('feature_users')->insert([
         'name' => 'Broken User',
         'preferences' => '{"theme": "dark"',
-        'notifications' => null,
     ]);
 
     $user = FeatureUser::where('name', 'Broken User')->first();
@@ -306,7 +302,7 @@ test('it throws ValueError when one item in a collection is an invalid enum valu
 
     FeatureUser::create([
         'name' => 'Bad Collection User',
-        'notifications' => [
+        'preferences' => [
             'channels' => ['email', 'pigeon_post']
         ],
     ]);
@@ -315,20 +311,20 @@ test('it throws ValueError when one item in a collection is an invalid enum valu
 test('it throws a TypeError when database types do not match constructor types', function () {
     DB::table('feature_users')->insert([
         'name' => 'Wrong Type User',
-        'notifications' => json_encode([
+        'preferences' => json_encode([
             'channels' => 'not-an-array'
         ]),
     ]);
 
     $user = FeatureUser::where('name', 'Wrong Type User')->first();
 
-    expect(fn() => $user->notifications)->toThrow(TypeError::class);
+    expect(fn() => $user->preferences)->toThrow(TypeError::class);
 });
 
 test('it serializes settings correctly when the model is converted to an array', function () {
     $user = FeatureUser::create([
         'name' => 'API User',
-        'notifications' => new UserNotificationPreferences(
+        'preferences' => new UserPreferences(
             frequency: Frequency::Weekly,
             channels: [Channel::Email]
         ),
@@ -336,7 +332,7 @@ test('it serializes settings correctly when the model is converted to an array',
 
     $modelArray = $user->toArray();
 
-    expect($modelArray['notifications'])->toBeArray()
-                                        ->and($modelArray['notifications']['frequency'])->toBe('weekly')
-                                        ->and($modelArray['notifications']['channels'])->toBe(['email']);
+    expect($modelArray['preferences'])->toBeArray()
+                                        ->and($modelArray['preferences']['frequency'])->toBe('weekly')
+                                        ->and($modelArray['preferences']['channels'])->toBe(['email']);
 });
