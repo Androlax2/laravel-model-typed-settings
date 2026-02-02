@@ -27,9 +27,41 @@ abstract class Settings implements Arrayable, Castable, Jsonable, JsonSerializab
     /** @var array<class-string, array<string, ReflectionProperty>> */
     protected static array $propertyCache = [];
 
+    /** @var array<class-string, array{defaults: array<string, mixed>}> */
+    protected static array $optimizedMetadata = [];
+
     public static function castUsing(array $arguments): GenericSettingsBridge
     {
         return new GenericSettingsBridge(static::class);
+    }
+
+    /**
+     * @param array<class-string, array{defaults: array<string, mixed>}> $cache
+     */
+    public static function setMetadataCache(array $cache): void
+    {
+        static::$optimizedMetadata = $cache;
+    }
+
+    /**
+     * @return array{defaults: array<string, mixed>}|array<empty>
+     */
+    public static function getMetadataFor(string $class): array
+    {
+        return static::$optimizedMetadata[$class] ?? [];
+    }
+
+    public static function bootFromCache(): void
+    {
+        $path = function_exists('app')
+            ? app()->bootstrapPath('cache/typed-settings.php')
+            : base_path('bootstrap/cache/typed-settings.php');
+
+        if (file_exists($path)) {
+            /** @var array<class-string, array{defaults: array<string, mixed>}> $data */
+            $data = require $path;
+            static::$optimizedMetadata = $data;
+        }
     }
 
     /**
@@ -238,13 +270,17 @@ abstract class Settings implements Arrayable, Castable, Jsonable, JsonSerializab
         $allVars = get_object_vars($this);
 
         if ($stripDefaults) {
-            $reflection = static::getReflection();
-            $defaultInstance = $reflection->newInstanceWithoutConstructor();
-            $defaultVars = get_object_vars($defaultInstance);
+            $defaultVars = static::$optimizedMetadata[static::class]['defaults'] ?? null;
 
-            if (empty($defaultVars)) {
-                $defaultInstance = static::fromArray([]);
+            if ($defaultVars === null) {
+                $reflection = static::getReflection();
+                $defaultInstance = $reflection->newInstanceWithoutConstructor();
                 $defaultVars = get_object_vars($defaultInstance);
+
+                if (empty($defaultVars)) {
+                    $defaultInstance = static::fromArray([]);
+                    $defaultVars = get_object_vars($defaultInstance);
+                }
             }
 
             $allVars = array_filter($allVars, function ($value, $key) use ($defaultVars) {
@@ -259,8 +295,9 @@ abstract class Settings implements Arrayable, Castable, Jsonable, JsonSerializab
                     return !empty($result);
                 }
 
-                if ($value instanceof BackedEnum && $defaultValue instanceof BackedEnum) {
-                    return $value->value !== $defaultValue->value;
+                if ($value instanceof BackedEnum) {
+                    $compareValue = $defaultValue instanceof BackedEnum ? $defaultValue->value : $defaultValue;
+                    return $value->value !== $compareValue;
                 }
 
                 return $value !== $defaultValue;

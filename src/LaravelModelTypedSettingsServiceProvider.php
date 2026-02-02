@@ -2,7 +2,6 @@
 
 namespace Androlax2\LaravelModelTypedSettings;
 
-use Androlax2\LaravelModelTypedSettings\Commands\LaravelModelTypedSettingsCommand;
 use Androlax2\LaravelModelTypedSettings\Commands\SettingsCacheCommand;
 use Androlax2\LaravelModelTypedSettings\Commands\SettingsClearCommand;
 use Illuminate\Database\Schema\Blueprint;
@@ -28,6 +27,15 @@ class LaravelModelTypedSettingsServiceProvider extends PackageServiceProvider
 
     public function packageBooted(): void
     {
+        Settings::bootFromCache();
+
+        if ($this->app->runningInConsole()) {
+            $this->optimizes(
+                optimize: 'settings:cache',
+                clear: 'settings:clear',
+            );
+        }
+
         Blueprint::macro('settingColumn', function (string $column = 'settings') {
             /** @var Blueprint $this */
             return $this->json($column)->nullable();
