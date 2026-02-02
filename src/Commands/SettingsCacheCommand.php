@@ -7,6 +7,7 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 use ReflectionClass;
 use ReflectionException;
+use ReflectionProperty;
 
 class SettingsCacheCommand extends Command
 {
@@ -26,11 +27,19 @@ class SettingsCacheCommand extends Command
         $cache = [];
 
         foreach ($settingsClasses as $class) {
-            /** @var class-string<Settings> $class */
+            $reflection = new ReflectionClass($class);
             $defaultInstance = $class::fromArray([]);
+
+            $properties = array_map(
+                fn($prop) => $prop->getName(),
+                $reflection->getProperties(ReflectionProperty::IS_PUBLIC | ReflectionProperty::IS_PROTECTED)
+            );
+
+            $properties = array_values(array_filter($properties, fn (string $name) => !in_array($name, ['reflectionCache', 'propertyCache', 'optimizedMetadata'])));
 
             $cache[$class] = [
                 'defaults' => $defaultInstance->toArray(stripDefaults: false),
+                'properties' => $properties,
             ];
         }
 
