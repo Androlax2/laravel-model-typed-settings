@@ -1,68 +1,12 @@
 <?php
 
-use Androlax2\LaravelModelTypedSettings\Attributes\AsCollection;
 use Androlax2\LaravelModelTypedSettings\Settings;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Schema\Blueprint;
+use Androlax2\LaravelModelTypedSettings\Tests\Fixtures\Channel;
+use Androlax2\LaravelModelTypedSettings\Tests\Fixtures\FeatureUser;
+use Androlax2\LaravelModelTypedSettings\Tests\Fixtures\Frequency;
+use Androlax2\LaravelModelTypedSettings\Tests\Fixtures\SecuritySettings;
+use Androlax2\LaravelModelTypedSettings\Tests\Fixtures\UserPreferences;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
-
-enum Frequency: string
-{
-    case Immediate = 'immediate';
-    case Daily = 'daily';
-    case Weekly = 'weekly';
-}
-
-enum Channel: string
-{
-    case Email = 'email';
-    case SMS = 'sms';
-    case Slack = 'slack';
-}
-
-class SecuritySettings extends Settings
-{
-    public function __construct(
-        public bool $two_factor_enabled = false,
-        public string $password_timeout = 'short'
-    ) {}
-}
-
-class UserPreferences extends Settings
-{
-    public function __construct(
-        public string $theme = 'light',
-        public bool $notifications_enabled = true,
-        public int $items_per_page = 10,
-        public array $custom_colors = [],
-        public Frequency $frequency = Frequency::Daily,
-        #[AsCollection(Channel::class)]
-        public array $channels = [Channel::Email],
-        public SecuritySettings $security = new SecuritySettings(),
-    ) {}
-}
-
-class FeatureUser extends Model
-{
-    protected $guarded = [];
-
-    protected $table = 'feature_users';
-
-    public $timestamps = false;
-
-    protected $casts = [
-        'preferences' => UserPreferences::class,
-    ];
-}
-
-beforeEach(function () {
-    Schema::create('feature_users', function (Blueprint $table) {
-        $table->id();
-        $table->string('name');
-        $table->settingColumn('preferences');
-    });
-});
 
 describe('Core Hydration & Defaults', function () {
     test('it casts json to settings object', function () {
@@ -272,5 +216,30 @@ describe('Lean JSON Storage (Stripping Defaults)', function () {
 
         expect($user->preferences->theme)->toBe('light')
                                          ->and($user->preferences->items_per_page)->toBe(5);
+    });
+});
+
+describe('Optimization & Tooling', function () {
+    test('it uses the pre-reflected property list when available', function () {
+        $cache = [
+            UserPreferences::class => [
+                'properties' => ['theme', 'notifications_enabled']
+            ]
+        ];
+
+        Settings::setMetadataCache($cache);
+
+        expect(Settings::getMetadataFor(UserPreferences::class))
+            ->toHaveKey('properties')
+            ->and(Settings::getMetadataFor(UserPreferences::class)['properties'])
+            ->toContain('theme');
+    });
+
+    test('it still works normally if the cache is empty', function () {
+        Settings::setMetadataCache([]);
+
+        $user = new UserPreferences(theme: 'emerald');
+
+        expect($user->theme)->toBe('emerald');
     });
 });

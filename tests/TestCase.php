@@ -4,6 +4,8 @@ namespace Androlax2\LaravelModelTypedSettings\Tests;
 
 use Androlax2\LaravelModelTypedSettings\LaravelModelTypedSettingsServiceProvider;
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
 use Orchestra\Testbench\TestCase as Orchestra;
 
 class TestCase extends Orchestra
@@ -15,6 +17,8 @@ class TestCase extends Orchestra
         Factory::guessFactoryNamesUsing(
             fn (string $modelName) => 'Androlax2\\LaravelModelTypedSettings\\Database\\Factories\\'.class_basename($modelName).'Factory'
         );
+
+        $this->setUpDatabase();
     }
 
     protected function getPackageProviders($app)
@@ -33,5 +37,14 @@ class TestCase extends Orchestra
             (include $migration->getRealPath())->up();
          }
          */
+    }
+
+    protected function setUpDatabase(): void
+    {
+        Schema::create('feature_users', function (Blueprint $table) {
+            $table->id();
+            $table->string('name');
+            $table->settingColumn('preferences');
+        });
     }
 }
