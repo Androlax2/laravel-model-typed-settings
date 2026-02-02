@@ -12,6 +12,7 @@ use InvalidArgumentException;
 use JsonSerializable;
 use ReflectionClass;
 use ReflectionException;
+use ReflectionParameter;
 use ReflectionNamedType;
 
 /**
@@ -19,9 +20,6 @@ use ReflectionNamedType;
  */
 abstract class Settings implements Arrayable, Castable, Jsonable, JsonSerializable
 {
-    /**
-     * @param array<string, mixed> $arguments
-     */
     public static function castUsing(array $arguments): GenericSettingsBridge
     {
         return new GenericSettingsBridge(static::class);
@@ -29,6 +27,7 @@ abstract class Settings implements Arrayable, Castable, Jsonable, JsonSerializab
 
     /**
      * @param array<string, mixed> $data
+     *
      * @throws ReflectionException
      */
     public static function fromArray(array $data): static
@@ -37,88 +36,139 @@ abstract class Settings implements Arrayable, Castable, Jsonable, JsonSerializab
         $constructor = $reflection->getConstructor();
 
         if (! $constructor || $constructor->getNumberOfParameters() === 0) {
-            $instance = $reflection->newInstance();
-            foreach ($data as $key => $value) {
-                if (property_exists($instance, $key)) {
-                    $instance->{$key} = $value;
-                }
-            }
-
-            return $instance;
+            return static::hydrateProperties($reflection->newInstance(), $data);
         }
 
-        $params = $constructor->getParameters();
-        $args = [];
-
-        foreach ($params as $param) {
-            $name = $param->getName();
-            $value = null;
-
-            if (array_key_exists($name, $data)) {
-                $value = $data[$name];
-            } elseif ($param->isDefaultValueAvailable()) {
-                $value = $param->getDefaultValue();
-            } else {
-                if (! $param->allowsNull()) {
-                    throw new InvalidArgumentException("Missing required setting: {$name}");
-                }
-            }
-
-            $type = $param->getType();
-            $collectionAttr = $param->getAttributes(AsCollection::class);
-
-            if (!empty($collectionAttr) && is_array($value)) {
-                /** @var class-string<BackedEnum> $castTo */
-                $castTo = $collectionAttr[0]->newInstance()->type;
-                if (enum_exists($castTo)) {
-                    $value = array_map(function ($item) use ($castTo) {
-                        if ($item instanceof $castTo) return $item;
-                        if (!is_string($item) && !is_int($item)) {
-                            throw new InvalidArgumentException("Enum value must be string or int.");
-                        }
-                        return $castTo::from($item);
-                    }, $value);
-                }
-            } elseif ($type instanceof ReflectionNamedType && enum_exists($type->getName())) {
-                /** @var class-string<BackedEnum> $enumClass */
-                $enumClass = $type->getName();
-                if (is_string($value) || is_int($value)) {
-                    $value = $enumClass::from($value);
-                }
-            }
-
-            $args[] = $value;
-        }
-
-        return $reflection->newInstanceArgs($args);
+        return $reflection->newInstanceArgs(array_map(
+            fn (ReflectionParameter $param) => static::resolveParameter($param, $data),
+            $constructor->getParameters()
+        ));
     }
 
     /**
+     * @param array<string, mixed>               $data
+     *
+     * @throws ReflectionException
+     */
+    protected static function resolveParameter(ReflectionParameter $param, array $data): mixed
+    {
+        $name = $param->getName();
+
+        $value = match (true) {
+            array_key_exists($name, $data) => $data[$name],
+            $param->isDefaultValueAvailable() => $param->getDefaultValue(),
+            $param->allowsNull() => null,
+            default => throw new InvalidArgumentException("Missing required setting: {$name}"),
+        };
+
+        return static::castValue($value, $param);
+    }
+
+    protected static function castValue(mixed $value, ReflectionParameter $param): mixed
+    {
+        if (static::isEnumCollection($param, $value)) {
+            return static::castToEnumCollection($param, $value);
+        }
+
+        if (static::isSingleEnum($param)) {
+            return static::castToSingleEnum($param, $value);
+        }
+
+        return $value;
+    }
+
+    protected static function isEnumCollection(ReflectionParameter $param, mixed $value): bool
+    {
+        return is_array($value) && !empty($param->getAttributes(AsCollection::class));
+    }
+
+    protected static function isSingleEnum(ReflectionParameter $param): bool
+    {
+        $type = $param->getType();
+
+        return $type instanceof ReflectionNamedType && enum_exists($type->getName());
+    }
+
+    /**
+     * @param array<string, mixed>               $value
+     *
      * @return array<string, mixed>
      */
-    public function toArray(): array
+    protected static function castToEnumCollection(ReflectionParameter $param, array $value): array
     {
-        $data = get_object_vars($this);
+        $attributes = $param->getAttributes(AsCollection::class);
 
-        return array_map(function (mixed $value) {
-            return is_array($value)
-                ? array_map(fn (mixed $item) => $item instanceof BackedEnum ? $item->value : $item,
-                $value)
-                : ($value instanceof BackedEnum ? $value->value : $value);
-        }, $data);
+        /** @var class-string<BackedEnum> $enumClass */
+        $enumClass = $attributes[0]->newInstance()->type;
+
+        return array_map(fn($item) => static::toEnum($enumClass, $item), $value);
+    }
+
+    protected static function castToSingleEnum(ReflectionParameter $param, mixed $value): ?BackedEnum
+    {
+        /** @var ReflectionNamedType $type */
+        $type = $param->getType();
+
+        /** @var class-string<BackedEnum> $enumClass */
+        $enumClass = $type->getName();
+
+        return static::toEnum($enumClass, $value);
     }
 
     /**
-     * @param int $options
+     * @param class-string<BackedEnum> $enumClass
      */
+    protected static function toEnum(string $enumClass, mixed $value): ?BackedEnum
+    {
+        if ($value instanceof $enumClass || $value === null) {
+            return $value;
+        }
+
+        if (!is_string($value) && !is_int($value)) {
+            throw new InvalidArgumentException("Enum value for {$enumClass} must be string or int.");
+        }
+
+        return $enumClass::from($value);
+    }
+
+    /**
+     * @param array<string, mixed>  $data
+     */
+    protected static function hydrateProperties(object $instance, array $data): static
+    {
+        if (!$instance instanceof static) {
+            throw new InvalidArgumentException(
+                sprintf('Expected instance of %s, got %s', static::class, get_class($instance))
+            );
+        }
+
+        foreach ($data as $key => $value) {
+            if (property_exists($instance, $key)) {
+                $instance->{$key} = $value;
+            }
+        }
+
+        return $instance;
+    }
+
+    public function toArray(): array
+    {
+        return array_map(function (mixed $value) {
+            if ($value instanceof BackedEnum) {
+                return $value->value;
+            }
+
+            return is_array($value)
+                ? array_map(fn ($item) => $item instanceof BackedEnum ? $item->value : $item, $value)
+                : $value;
+        }, get_object_vars($this));
+    }
+
     public function toJson($options = 0): string
     {
         return (string) json_encode($this->toArray(), $options);
     }
 
-    /**
-     * @return array<string, mixed>
-     */
     public function jsonSerialize(): array
     {
         return $this->toArray();
