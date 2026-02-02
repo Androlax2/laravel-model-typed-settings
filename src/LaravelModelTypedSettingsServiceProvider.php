@@ -3,6 +3,8 @@
 namespace Androlax2\LaravelModelTypedSettings;
 
 use Androlax2\LaravelModelTypedSettings\Commands\LaravelModelTypedSettingsCommand;
+use Androlax2\LaravelModelTypedSettings\Commands\SettingsCacheCommand;
+use Androlax2\LaravelModelTypedSettings\Commands\SettingsClearCommand;
 use Illuminate\Database\Schema\Blueprint;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
@@ -16,7 +18,12 @@ class LaravelModelTypedSettingsServiceProvider extends PackageServiceProvider
          *
          * More info: https://github.com/spatie/laravel-package-tools
          */
-        $package->name('laravel-model-typed-settings');
+        $package
+            ->name('laravel-model-typed-settings')
+            ->hasCommands([
+                SettingsCacheCommand::class,
+                SettingsClearCommand::class,
+            ]);
     }
 
     public function packageBooted(): void

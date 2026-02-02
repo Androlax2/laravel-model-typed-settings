@@ -4,7 +4,7 @@ use Androlax2\LaravelModelTypedSettings\Settings;
 use Androlax2\LaravelModelTypedSettings\Tests\Fixtures\UserPreferences;
 
 beforeEach(function () {
-    $path = storage_path('framework/cache/typed-settings.php');
+    $path = base_path('bootstrap/cache/typed-settings.php');
     if (File::exists($path)) {
         File::delete($path);
     }
@@ -14,7 +14,7 @@ describe('Artisan Optimization Command', function () {
     test('the settings:cache command generates a cache file', function () {
         Artisan::call('settings:cache');
 
-        $path = storage_path('framework/cache/typed-settings.php');
+        $path = base_path('bootstrap/cache/typed-settings.php');
 
         expect(File::exists($path))->toBeTrue();
 
@@ -24,7 +24,7 @@ describe('Artisan Optimization Command', function () {
     });
 
     test('the settings system boots from the cache file if it exists', function () {
-        $path = storage_path('framework/cache/typed-settings.php');
+        $path = base_path('bootstrap/cache/typed-settings.php');
         $fakeData = [
             UserPreferences::class => [
                 'properties' => ['fake_property_from_cache']
@@ -42,10 +42,10 @@ describe('Artisan Optimization Command', function () {
 
     test('settings:clear removes the cache file', function () {
         Artisan::call('settings:cache');
-        expect(File::exists(storage_path('framework/cache/typed-settings.php')))->toBeTrue();
+        expect(File::exists(base_path('bootstrap/cache/typed-settings.php')))->toBeTrue();
 
         Artisan::call('settings:clear');
-        expect(File::exists(storage_path('framework/cache/typed-settings.php')))->toBeFalse();
+        expect(File::exists(base_path('bootstrap/cache/typed-settings.php')))->toBeFalse();
     });
 });
 
