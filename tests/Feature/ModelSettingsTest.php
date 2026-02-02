@@ -35,7 +35,8 @@ class UserPreferences extends Settings
     public function __construct(
         public string $theme = 'light',
         public bool $notifications_enabled = true,
-        public int $items_per_page = 10
+        public int $items_per_page = 10,
+        public array $custom_colors = [],
     ) {}
 }
 
@@ -239,4 +240,74 @@ test('it coerces numeric strings to integers if the property is typed as int', f
     $user->refresh();
 
     expect($user->preferences->items_per_page)->toBeInt()->toBe(50);
+});
+
+test('it uses default values for keys missing in the database', function () {
+    DB::table('feature_users')->insert([
+        'name' => 'Old User',
+        'preferences' => json_encode(['theme' => 'dark']),
+        'notifications' => json_encode([]),
+    ]);
+
+    $user = FeatureUser::where('name', 'Old User')->first();
+
+    expect($user->preferences->theme)->toBe('dark')
+                                     ->and($user->preferences->items_per_page)->toBe(10);
+});
+
+test('it handles nested array data', function () {
+    $data = ['theme' => 'dark', 'custom_colors' => ['primary' => '#000', 'secondary' => '#fff']];
+
+    $user = FeatureUser::create([
+        'name' => 'Designer',
+        'preferences' => $data
+    ]);
+
+    expect($user->refresh()->preferences->custom_colors)->toBeArray()
+                                                        ->and($user->refresh()->preferences->custom_colors['primary'])->toBe('#000');
+});
+
+test('it maintains structural integrity when saving without changes', function () {
+    $initialData = ['theme' => 'dark', 'notifications_enabled' => true, 'items_per_page' => 10];
+    $user = FeatureUser::create(['name' => 'Consistent', 'preferences' => $initialData]);
+
+    $user->save();
+
+    $dbValue = DB::table('feature_users')->where('id', $user->id)->value('preferences');
+    expect(json_decode($dbValue, true))->toEqual($initialData);
+});
+
+test('it handles empty or corrupt json strings by returning default object', function () {
+    DB::table('feature_users')->insert([
+        'name' => 'Broken User',
+        'preferences' => '',
+    ]);
+
+    $user = FeatureUser::where('name', 'Broken User')->first();
+
+    expect($user->preferences)->toBeInstanceOf(UserPreferences::class)
+                              ->and($user->preferences->theme)->toBe('light');
+});
+
+test('it throws an exception when json is corrupt', function () {
+    DB::table('feature_users')->insert([
+        'name' => 'Broken User',
+        'preferences' => '{"theme": "dark"',
+        'notifications' => null,
+    ]);
+
+    $user = FeatureUser::where('name', 'Broken User')->first();
+
+    expect(fn() => $user->preferences)->toThrow(JsonException::class);
+});
+
+test('it throws ValueError when one item in a collection is an invalid enum value', function () {
+    $this->expectException(ValueError::class);
+
+    FeatureUser::create([
+        'name' => 'Bad Collection User',
+        'notifications' => [
+            'channels' => ['email', 'pigeon_post']
+        ],
+    ]);
 });
