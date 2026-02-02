@@ -1,5 +1,6 @@
 <?php
 
+use Androlax2\LaravelModelTypedSettings\Attributes\AsCollection;
 use Androlax2\LaravelModelTypedSettings\Settings;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
