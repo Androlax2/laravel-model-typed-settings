@@ -311,3 +311,16 @@ test('it throws ValueError when one item in a collection is an invalid enum valu
         ],
     ]);
 });
+
+test('it throws a TypeError when database types do not match constructor types', function () {
+    DB::table('feature_users')->insert([
+        'name' => 'Wrong Type User',
+        'notifications' => json_encode([
+            'channels' => 'not-an-array'
+        ]),
+    ]);
+
+    $user = FeatureUser::where('name', 'Wrong Type User')->first();
+
+    expect(fn() => $user->notifications)->toThrow(TypeError::class);
+});
