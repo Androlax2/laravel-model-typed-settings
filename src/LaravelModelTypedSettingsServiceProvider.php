@@ -1,12 +1,12 @@
 <?php
 
-namespace VendorName\Skeleton;
+namespace Androlax2\LaravelModelTypedSettings;
 
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
-use VendorName\Skeleton\Commands\SkeletonCommand;
+use Androlax2\LaravelModelTypedSettings\Commands\LaravelModelTypedSettingsCommand;
 
-class SkeletonServiceProvider extends PackageServiceProvider
+class LaravelModelTypedSettingsServiceProvider extends PackageServiceProvider
 {
     public function configurePackage(Package $package): void
     {
@@ -16,10 +16,10 @@ class SkeletonServiceProvider extends PackageServiceProvider
          * More info: https://github.com/spatie/laravel-package-tools
          */
         $package
-            ->name('skeleton')
+            ->name('laravel-model-typed-settings')
             ->hasConfigFile()
             ->hasViews()
-            ->hasMigration('create_migration_table_name_table')
-            ->hasCommand(SkeletonCommand::class);
+            ->hasMigration('create_laravel_model_typed_settings_table')
+            ->hasCommand(LaravelModelTypedSettingsCommand::class);
     }
 }

@@ -1,12 +1,12 @@
 <?php
 
-namespace VendorName\Skeleton\Commands;
+namespace Androlax2\LaravelModelTypedSettings\Commands;
 
 use Illuminate\Console\Command;
 
-class SkeletonCommand extends Command
+class LaravelModelTypedSettingsCommand extends Command
 {
-    public $signature = 'skeleton';
+    public $signature = 'laravel-model-typed-settings';
 
     public $description = 'My command';
 

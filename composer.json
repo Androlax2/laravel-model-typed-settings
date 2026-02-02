@@ -1,17 +1,17 @@
 {
-    "name": ":vendor_slug/:package_slug",
-    "description": ":package_description",
+    "name": "androlax2/laravel-model-typed-settings",
+    "description": "A Laravel package that adds type-safe settings attributes to Eloquent models with automatic casting and validation ",
     "keywords": [
-        ":vendor_name",
+        "Androlax2",
         "laravel",
-        ":package_slug"
+        "laravel-model-typed-settings"
     ],
-    "homepage": "https://github.com/:vendor_slug/:package_slug",
+    "homepage": "https://github.com/androlax2/laravel-model-typed-settings",
     "license": "MIT",
     "authors": [
         {
-            "name": ":author_name",
-            "email": "author@domain.com",
+            "name": "Androlax2",
+            "email": "theo.benoit16@gmail.com",
             "role": "Developer"
         }
     ],
@@ -30,18 +30,17 @@
         "pestphp/pest-plugin-laravel": "^4.0",
         "phpstan/extension-installer": "^1.4",
         "phpstan/phpstan-deprecation-rules": "^2.0",
-        "phpstan/phpstan-phpunit": "^2.0",
-        "spatie/laravel-ray": "^1.35"
+        "phpstan/phpstan-phpunit": "^2.0"
     },
     "autoload": {
         "psr-4": {
-            "VendorName\\Skeleton\\": "src/",
-            "VendorName\\Skeleton\\Database\\Factories\\": "database/factories/"
+            "Androlax2\\LaravelModelTypedSettings\\": "src/",
+            "Androlax2\\LaravelModelTypedSettings\\Database\\Factories\\": "database/factories/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "VendorName\\Skeleton\\Tests\\": "tests/",
+            "Androlax2\\LaravelModelTypedSettings\\Tests\\": "tests/",
             "Workbench\\App\\": "workbench/app/"
         }
     },
@@ -63,10 +62,10 @@
     "extra": {
         "laravel": {
             "providers": [
-                "VendorName\\Skeleton\\SkeletonServiceProvider"
+                "Androlax2\\LaravelModelTypedSettings\\LaravelModelTypedSettingsServiceProvider"
             ],
             "aliases": {
-                "Skeleton": "VendorName\\Skeleton\\Facades\\Skeleton"
+                "LaravelModelTypedSettings": "Androlax2\\LaravelModelTypedSettings\\Facades\\LaravelModelTypedSettings"
             }
         }
     },
