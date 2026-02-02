@@ -37,6 +37,6 @@ class UserPreferences extends Settings
         public Frequency $frequency = Frequency::Daily,
         #[AsCollection(Channel::class)]
         public array $channels = [Channel::Email],
-        public SecuritySettings $security = new SecuritySettings(),
+        public SecuritySettings $security = new SecuritySettings,
     ) {}
 }

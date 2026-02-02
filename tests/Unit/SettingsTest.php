@@ -59,5 +59,5 @@ test('eloquent cast logic works', function () {
     $casts = $user->getCasts();
 
     expect($casts)->toHaveKey('settings')
-                  ->and($casts['settings'])->toBe(TestProfileSettings::class);
+        ->and($casts['settings'])->toBe(TestProfileSettings::class);
 });

@@ -12,8 +12,8 @@ use InvalidArgumentException;
 use JsonSerializable;
 use ReflectionClass;
 use ReflectionException;
-use ReflectionParameter;
 use ReflectionNamedType;
+use ReflectionParameter;
 use ReflectionProperty;
 
 /**
@@ -33,7 +33,7 @@ abstract class Settings implements Arrayable, Castable, Jsonable, JsonSerializab
     }
 
     /**
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      *
      * @throws ReflectionException
      */
@@ -57,7 +57,8 @@ abstract class Settings implements Arrayable, Castable, Jsonable, JsonSerializab
     }
 
     /**
-     * @param array<string, mixed>                                  $data
+     * @param  array<string, mixed>  $data
+     *
      * @throws ReflectionException
      */
     protected static function resolveValue(string $name, array $data, ReflectionParameter|ReflectionProperty $target): mixed
@@ -78,7 +79,7 @@ abstract class Settings implements Arrayable, Castable, Jsonable, JsonSerializab
     protected static function castValue(mixed $value, ReflectionParameter|ReflectionProperty $target): mixed
     {
         if (static::isEnumCollection($target, $value)) {
-            if (!is_array($value)) {
+            if (! is_array($value)) {
                 throw new InvalidArgumentException(
                     sprintf('Setting "%s" expects an array for collection casting.', $target->getName())
                 );
@@ -95,7 +96,7 @@ abstract class Settings implements Arrayable, Castable, Jsonable, JsonSerializab
 
         if ($settingsClass) {
             if (is_null($value)) {
-                return $target->getType()?->allowsNull() ? null : new $settingsClass();
+                return $target->getType()?->allowsNull() ? null : new $settingsClass;
             }
 
             if (is_array($value)) {
@@ -128,18 +129,18 @@ abstract class Settings implements Arrayable, Castable, Jsonable, JsonSerializab
 
     protected static function isEnumCollection(ReflectionParameter|ReflectionProperty $target, mixed $value): bool
     {
-        return is_array($value) && !empty($target->getAttributes(AsCollection::class));
+        return is_array($value) && ! empty($target->getAttributes(AsCollection::class));
     }
 
     protected static function isSingleEnum(ReflectionParameter|ReflectionProperty $target): bool
     {
         $type = $target->getType();
+
         return $type instanceof ReflectionNamedType && enum_exists($type->getName());
     }
 
     /**
-     * @param array<mixed>               $value
-     *
+     * @param  array<mixed>  $value
      * @return array<mixed>
      */
     protected static function castToEnumCollection(ReflectionParameter|ReflectionProperty $target, array $value): array
@@ -149,14 +150,14 @@ abstract class Settings implements Arrayable, Castable, Jsonable, JsonSerializab
         /** @var class-string<BackedEnum> $enumClass */
         $enumClass = $attributes[0]->newInstance()->type;
 
-        return array_map(fn($item) => static::toEnum($enumClass, $item), $value);
+        return array_map(fn ($item) => static::toEnum($enumClass, $item), $value);
     }
 
     protected static function castToSingleEnum(ReflectionParameter|ReflectionProperty $target, mixed $value): ?BackedEnum
     {
         $type = $target->getType();
 
-        if (!$type instanceof ReflectionNamedType) {
+        if (! $type instanceof ReflectionNamedType) {
             return null;
         }
 
@@ -167,7 +168,7 @@ abstract class Settings implements Arrayable, Castable, Jsonable, JsonSerializab
     }
 
     /**
-     * @param class-string<BackedEnum> $enumClass
+     * @param  class-string<BackedEnum>  $enumClass
      */
     protected static function toEnum(string $enumClass, mixed $value): ?BackedEnum
     {
@@ -175,7 +176,7 @@ abstract class Settings implements Arrayable, Castable, Jsonable, JsonSerializab
             return $value;
         }
 
-        if (!is_string($value) && !is_int($value)) {
+        if (! is_string($value) && ! is_int($value)) {
             throw new InvalidArgumentException("Enum value for {$enumClass} must be string or int.");
         }
 
@@ -183,11 +184,11 @@ abstract class Settings implements Arrayable, Castable, Jsonable, JsonSerializab
     }
 
     /**
-     * @param array<string, mixed>  $data
+     * @param  array<string, mixed>  $data
      */
     protected static function hydrateProperties(object $instance, array $data): static
     {
-        if (!$instance instanceof static) {
+        if (! $instance instanceof static) {
             throw new InvalidArgumentException(
                 sprintf('Expected instance of %s, got %s', static::class, get_class($instance))
             );
@@ -248,7 +249,7 @@ abstract class Settings implements Arrayable, Castable, Jsonable, JsonSerializab
             }
 
             $allVars = array_filter($allVars, function ($value, $key) use ($defaultVars) {
-                if (!array_key_exists($key, $defaultVars)) {
+                if (! array_key_exists($key, $defaultVars)) {
                     return true;
                 }
 
@@ -256,7 +257,8 @@ abstract class Settings implements Arrayable, Castable, Jsonable, JsonSerializab
 
                 if ($value instanceof self) {
                     $result = $value->toArray();
-                    return !empty($result);
+
+                    return ! empty($result);
                 }
 
                 if ($value instanceof BackedEnum && $defaultValue instanceof BackedEnum) {
@@ -278,8 +280,13 @@ abstract class Settings implements Arrayable, Castable, Jsonable, JsonSerializab
 
             if (is_array($value)) {
                 return array_map(function ($item) use ($stripDefaults) {
-                    if ($item instanceof BackedEnum) return $item->value;
-                    if ($item instanceof self) return $item->toArray($stripDefaults);
+                    if ($item instanceof BackedEnum) {
+                        return $item->value;
+                    }
+                    if ($item instanceof self) {
+                        return $item->toArray($stripDefaults);
+                    }
+
                     return $item;
                 }, $value);
             }
@@ -311,6 +318,7 @@ abstract class Settings implements Arrayable, Castable, Jsonable, JsonSerializab
 
     /**
      * @return array<mixed>
+     *
      * @throws ReflectionException
      */
     public function jsonSerialize(): array

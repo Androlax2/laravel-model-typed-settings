@@ -15,7 +15,7 @@ use ReflectionException;
 class GenericSettingsBridge implements CastsAttributes
 {
     /**
-     * @param class-string<Settings> $settingsClass
+     * @param  class-string<Settings>  $settingsClass
      */
     public function __construct(protected string $settingsClass) {}
 
@@ -41,8 +41,8 @@ class GenericSettingsBridge implements CastsAttributes
     }
 
     /**
-     * @param Settings|array<string, mixed>|null $value
-     * @param array<string, mixed>               $attributes
+     * @param  Settings|array<string, mixed>|null  $value
+     * @param  array<string, mixed>  $attributes
      *
      * @throws JsonException|ReflectionException
      */

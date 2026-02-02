@@ -1,6 +1,5 @@
 <?php
 
-use Androlax2\LaravelModelTypedSettings\Settings;
 use Androlax2\LaravelModelTypedSettings\Tests\Fixtures\Channel;
 use Androlax2\LaravelModelTypedSettings\Tests\Fixtures\FeatureUser;
 use Androlax2\LaravelModelTypedSettings\Tests\Fixtures\Frequency;
@@ -22,9 +21,9 @@ describe('Core Hydration & Defaults', function () {
         $user->refresh();
 
         expect($user->preferences)->toBeInstanceOf(UserPreferences::class)
-                                  ->and($user->preferences->theme)->toBe('dark')
-                                  ->and($user->preferences->notifications_enabled)->toBeFalse()
-                                  ->and($user->preferences->items_per_page)->toBe(20);
+            ->and($user->preferences->theme)->toBe('dark')
+            ->and($user->preferences->notifications_enabled)->toBeFalse()
+            ->and($user->preferences->items_per_page)->toBe(20);
     });
 
     test('it uses default values for keys missing in the database', function () {
@@ -36,7 +35,7 @@ describe('Core Hydration & Defaults', function () {
         $user = FeatureUser::where('name', 'Old User')->first();
 
         expect($user->preferences->theme)->toBe('dark')
-                                         ->and($user->preferences->items_per_page)->toBe(10);
+            ->and($user->preferences->items_per_page)->toBe(10);
     });
 
     test('it coerces numeric strings to integers if the property is typed as int', function () {
@@ -57,7 +56,7 @@ describe('Core Hydration & Defaults', function () {
         $user = FeatureUser::where('name', 'Messy User')->first();
 
         expect($user->preferences->theme)->toBe('dark')
-                                         ->and(property_exists($user->preferences, 'unknown_key'))->toBeFalse();
+            ->and(property_exists($user->preferences, 'unknown_key'))->toBeFalse();
     });
 });
 
@@ -95,7 +94,7 @@ describe('Collections', function () {
         $user->refresh();
 
         expect($user->preferences->channels)->toBeArray()
-                                            ->and($user->preferences->channels[1])->toBe(Channel::Slack);
+            ->and($user->preferences->channels[1])->toBe(Channel::Slack);
     });
 
     test('it throws ValueError when one item in a collection is an invalid enum value', function () {
@@ -113,19 +112,19 @@ describe('Nested Settings', function () {
         $user = FeatureUser::create([
             'name' => 'Secure User',
             'preferences' => [
-                'security' => ['two_factor_enabled' => true]
+                'security' => ['two_factor_enabled' => true],
             ],
         ]);
 
         expect($user->refresh()->preferences->security)->toBeInstanceOf(SecuritySettings::class)
-                                                       ->and($user->preferences->security->two_factor_enabled)->toBeTrue();
+            ->and($user->preferences->security->two_factor_enabled)->toBeTrue();
     });
 
     test('it uses default values for nested settings if key is missing', function () {
         $user = FeatureUser::create(['name' => 'Default Security User', 'preferences' => []]);
 
         expect($user->preferences->security)->toBeInstanceOf(SecuritySettings::class)
-                                            ->and($user->preferences->security->two_factor_enabled)->toBeFalse();
+            ->and($user->preferences->security->two_factor_enabled)->toBeFalse();
     });
 });
 
@@ -156,7 +155,7 @@ describe('Eloquent Integration & Serialization', function () {
 
         DB::table('feature_users')->insert(['name' => 'Broken', 'preferences' => '{bad:json}']);
         $userBroken = FeatureUser::where('name', 'Broken')->first();
-        expect(fn() => $userBroken->preferences)->toThrow(JsonException::class);
+        expect(fn () => $userBroken->preferences)->toThrow(JsonException::class);
     });
 });
 
@@ -166,7 +165,7 @@ describe('Lean JSON Storage (Stripping Defaults)', function () {
             'name' => 'Lean User',
             'preferences' => [
                 'theme' => 'light',
-                'items_per_page' => 99
+                'items_per_page' => 99,
             ],
         ]);
 
@@ -174,7 +173,7 @@ describe('Lean JSON Storage (Stripping Defaults)', function () {
         $decoded = json_decode($dbValue, true);
 
         expect($decoded)->not->toHaveKey('theme')
-                             ->and($decoded)->toHaveKey('items_per_page', 99);
+            ->and($decoded)->toHaveKey('items_per_page', 99);
     });
 
     test('it strips defaults recursively in nested settings', function () {
@@ -183,8 +182,8 @@ describe('Lean JSON Storage (Stripping Defaults)', function () {
             'preferences' => [
                 'security' => [
                     'two_factor_enabled' => false,
-                    'password_timeout' => 'infinite'
-                ]
+                    'password_timeout' => 'infinite',
+                ],
             ],
         ]);
 
@@ -192,13 +191,13 @@ describe('Lean JSON Storage (Stripping Defaults)', function () {
         $decoded = json_decode($dbValue, true);
 
         expect($decoded['security'])->not->toHaveKey('two_factor_enabled')
-                                         ->and($decoded['security'])->toHaveKey('password_timeout', 'infinite');
+            ->and($decoded['security'])->toHaveKey('password_timeout', 'infinite');
     });
 
     test('it saves an empty json object if all values are defaults', function () {
         $user = FeatureUser::create([
             'name' => 'Default Only User',
-            'preferences' => new UserPreferences(),
+            'preferences' => new UserPreferences,
         ]);
 
         $dbValue = DB::table('feature_users')->where('id', $user->id)->value('preferences');
@@ -209,12 +208,12 @@ describe('Lean JSON Storage (Stripping Defaults)', function () {
     test('it restores defaults correctly when reading from a stripped JSON', function () {
         DB::table('feature_users')->insert([
             'name' => 'Manual Stripped',
-            'preferences' => json_encode(['items_per_page' => 5])
+            'preferences' => json_encode(['items_per_page' => 5]),
         ]);
 
         $user = FeatureUser::where('name', 'Manual Stripped')->first();
 
         expect($user->preferences->theme)->toBe('light')
-                                         ->and($user->preferences->items_per_page)->toBe(5);
+            ->and($user->preferences->items_per_page)->toBe(5);
     });
 });
