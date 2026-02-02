@@ -3,6 +3,7 @@
 namespace Androlax2\LaravelModelTypedSettings;
 
 use Androlax2\LaravelModelTypedSettings\Commands\LaravelModelTypedSettingsCommand;
+use Illuminate\Database\Schema\Blueprint;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
 
@@ -21,5 +22,13 @@ class LaravelModelTypedSettingsServiceProvider extends PackageServiceProvider
             ->hasViews()
             ->hasMigration('create_laravel_model_typed_settings_table')
             ->hasCommand(LaravelModelTypedSettingsCommand::class);
+    }
+
+    public function packageBooted(): void
+    {
+        Blueprint::macro('settingColumn', function (string $column = 'settings') {
+            /** @var Blueprint $this */
+            return $this->json($column)->nullable();
+        });
     }
 }
