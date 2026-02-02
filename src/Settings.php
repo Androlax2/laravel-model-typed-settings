@@ -21,6 +21,12 @@ use ReflectionProperty;
  */
 abstract class Settings implements Arrayable, Castable, Jsonable, JsonSerializable
 {
+    /** @var array<class-string, ReflectionClass<static>> */
+    protected static array $reflectionCache = [];
+
+    /** @var array<class-string, array<string, ReflectionProperty>> */
+    protected static array $propertyCache = [];
+
     public static function castUsing(array $arguments): GenericSettingsBridge
     {
         return new GenericSettingsBridge(static::class);
@@ -33,7 +39,7 @@ abstract class Settings implements Arrayable, Castable, Jsonable, JsonSerializab
      */
     public static function fromArray(array $data): static
     {
-        $reflection = new ReflectionClass(static::class);
+        $reflection = static::getReflection();
         $constructor = $reflection->getConstructor();
 
         if (! $constructor || $constructor->getNumberOfParameters() === 0) {
@@ -152,13 +158,41 @@ abstract class Settings implements Arrayable, Castable, Jsonable, JsonSerializab
             );
         }
 
+        $properties = static::getReflectedProperties();
+
         foreach ($data as $key => $value) {
-            if (property_exists($instance, $key)) {
-                $instance->{$key} = $value;
+            if (isset($properties[$key])) {
+                $property = $properties[$key];
+                $instance->{$key} = static::castValue($value, $property);
             }
         }
 
         return $instance;
+    }
+
+    /**
+     * @return ReflectionClass<static>
+     */
+    protected static function getReflection(): ReflectionClass
+    {
+        return static::$reflectionCache[static::class] ??= new ReflectionClass(static::class);
+    }
+
+    /**
+     * @return array<string, ReflectionProperty>
+     */
+    protected static function getReflectedProperties(): array
+    {
+        if (isset(static::$propertyCache[static::class])) {
+            return static::$propertyCache[static::class];
+        }
+
+        $properties = [];
+        foreach (static::getReflection()->getProperties() as $property) {
+            $properties[$property->getName()] = $property;
+        }
+
+        return static::$propertyCache[static::class] = $properties;
     }
 
     public function toArray(): array
