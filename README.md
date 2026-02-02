@@ -1,9 +1,11 @@
-# A Laravel package that adds type-safe settings attributes to Eloquent models with automatic casting and validation 
+# Laravel Model Typed Settings 
 
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/androlax2/laravel-model-typed-settings.svg?style=flat-square)](https://packagist.org/packages/androlax2/laravel-model-typed-settings)
 [![GitHub Tests Action Status](https://img.shields.io/github/actions/workflow/status/androlax2/laravel-model-typed-settings/run-tests.yml?branch=main&label=tests&style=flat-square)](https://github.com/androlax2/laravel-model-typed-settings/actions?query=workflow%3Arun-tests+branch%3Amain)
 [![GitHub Code Style Action Status](https://img.shields.io/github/actions/workflow/status/androlax2/laravel-model-typed-settings/fix-php-code-style-issues.yml?branch=main&label=code%20style&style=flat-square)](https://github.com/androlax2/laravel-model-typed-settings/actions?query=workflow%3A"Fix+PHP+code+style+issues"+branch%3Amain)
 [![Total Downloads](https://img.shields.io/packagist/dt/androlax2/laravel-model-typed-settings.svg?style=flat-square)](https://packagist.org/packages/androlax2/laravel-model-typed-settings)
+
+Stop treating your model settings like messy associative arrays. This package allows you to cast JSON columns directly into Type-Safe DTOs with support for nested objects, enums, and automatic type coercion.
 
 ## Installation
 
@@ -13,37 +15,64 @@ You can install the package via composer:
 composer require androlax2/laravel-model-typed-settings
 ```
 
-You can publish and run the migrations with:
-
-```bash
-php artisan vendor:publish --tag="laravel-model-typed-settings-migrations"
-php artisan migrate
-```
-
-You can publish the config file with:
-
-```bash
-php artisan vendor:publish --tag="laravel-model-typed-settings-config"
-```
-
-This is the contents of the published config file:
-
-```php
-return [
-];
-```
-
-Optionally, you can publish the views using
-
-```bash
-php artisan vendor:publish --tag="laravel-model-typed-settings-views"
-```
-
 ## Usage
 
+### Define your Settings Class
+
+Create a class that extends `Androlax2\LaravelModelTypedSettings\Settings`. Use standard PHP properties with types and default values.
+
 ```php
-$laravelModelTypedSettings = new Androlax2\LaravelModelTypedSettings();
-echo $laravelModelTypedSettings->echoPhrase('Hello, Androlax2!');
+<?php
+
+namespace App\Settings;
+
+use Androlax2\LaravelModelTypedSettings\Settings;
+use Androlax2\LaravelModelTypedSettings\Attributes\AsCollection;
+
+class UserPreferences extends Settings
+{
+    public string $theme = 'light';
+    public int $items_per_page = 15;
+    public bool $notifications_enabled = true;
+
+    // Support for Backed Enums
+    public UserStatus $status = UserStatus::Active;
+
+    // Support for Collections of Enums
+    #[AsCollection(NotificationChannel::class)]
+    public array $channels = [NotificationChannel::Email];
+
+    // Support for Nested Settings
+    public SecuritySettings $security;
+}
+```
+
+### Apply to Eloquent Model
+
+Add the settings class to your model's `$casts` array.
+
+```php
+<?php
+
+use App\Models\User;
+use App\Settings\UserPreferences;
+
+class User extends Model
+{
+    protected $casts = [
+        'preferences' => UserPreferences::class,
+    ];
+}
+```
+
+Add to database the column for preferences : 
+
+```php
+<?php
+
+Schema::create('users', function (Blueprint $table) {
+    $table->settingColumn('preferences');
+});
 ```
 
 ## Testing
