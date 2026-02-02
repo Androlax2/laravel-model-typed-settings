@@ -324,3 +324,19 @@ test('it throws a TypeError when database types do not match constructor types',
 
     expect(fn() => $user->notifications)->toThrow(TypeError::class);
 });
+
+test('it serializes settings correctly when the model is converted to an array', function () {
+    $user = FeatureUser::create([
+        'name' => 'API User',
+        'notifications' => new UserNotificationPreferences(
+            frequency: Frequency::Weekly,
+            channels: [Channel::Email]
+        ),
+    ]);
+
+    $modelArray = $user->toArray();
+
+    expect($modelArray['notifications'])->toBeArray()
+                                        ->and($modelArray['notifications']['frequency'])->toBe('weekly')
+                                        ->and($modelArray['notifications']['channels'])->toBe(['email']);
+});
