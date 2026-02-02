@@ -198,3 +198,45 @@ test('it can sync collection of enums via array of strings', function () {
     expect($user->preferences->channels)->toContain(Channel::SMS)
                                         ->and($user->preferences->channels)->not->toContain(Channel::Email);
 });
+
+test('it ignores extra data in the json that is not defined in the class', function () {
+    DB::table('feature_users')->insert([
+        'name' => 'Messy User',
+        'preferences' => json_encode([
+            'theme' => 'dark',
+            'deprecated_legacy_key' => 'some value'
+        ]),
+        'notifications' => json_encode([]),
+    ]);
+
+    $user = FeatureUser::where('name', 'Messy User')->first();
+
+    expect($user->preferences->theme)->toBe('dark')
+                                     ->and(property_exists($user->preferences, 'deprecated_legacy_key'))->toBeFalse();
+});
+
+test('it marks the model as dirty when settings are updated', function () {
+    $user = FeatureUser::create([
+        'name' => 'Dirty Check',
+        'preferences' => ['theme' => 'light'],
+    ]);
+
+    expect($user->isDirty('preferences'))->toBeFalse();
+
+    $settings = $user->preferences;
+    $settings->theme = 'dark';
+    $user->preferences = $settings;
+
+    expect($user->isDirty('preferences'))->toBeTrue();
+});
+
+test('it coerces numeric strings to integers if the property is typed as int', function () {
+    $user = FeatureUser::create([
+        'name' => 'Type Coercion',
+        'preferences' => ['items_per_page' => '50'],
+    ]);
+
+    $user->refresh();
+
+    expect($user->preferences->items_per_page)->toBeInt()->toBe(50);
+});
