@@ -21,6 +21,14 @@ enum Channel: string
     case Slack = 'slack';
 }
 
+class SecuritySettings extends Settings
+{
+    public function __construct(
+        public bool $two_factor_enabled = false,
+        public string $password_timeout = 'short'
+    ) {}
+}
+
 class UserPreferences extends Settings
 {
     public function __construct(
@@ -30,7 +38,8 @@ class UserPreferences extends Settings
         public array $custom_colors = [],
         public Frequency $frequency = Frequency::Daily,
         #[AsCollection(Channel::class)]
-        public array $channels = [Channel::Email]
+        public array $channels = [Channel::Email],
+        public SecuritySettings $security = new SecuritySettings(),
     ) {}
 }
 
@@ -335,4 +344,45 @@ test('it serializes settings correctly when the model is converted to an array',
     expect($modelArray['preferences'])->toBeArray()
                                         ->and($modelArray['preferences']['frequency'])->toBe('weekly')
                                         ->and($modelArray['preferences']['channels'])->toBe(['email']);
+});
+
+test('it handles nested settings objects correctly', function () {
+    $user = FeatureUser::create([
+        'name' => 'Secure User',
+        'preferences' => [
+            'theme' => 'dark',
+            'security' => [
+                'two_factor_enabled' => true,
+                'password_timeout' => 'long'
+            ]
+        ],
+    ]);
+
+    $user->refresh();
+
+    expect($user->preferences->security)->toBeInstanceOf(SecuritySettings::class)
+                                        ->and($user->preferences->security->two_factor_enabled)->toBeTrue()
+                                        ->and($user->preferences->security->password_timeout)->toBe('long');
+
+    $prefs = $user->preferences;
+    $prefs->security->password_timeout = 'never';
+    $user->preferences = $prefs;
+    $user->save();
+
+    $dbValue = DB::table('feature_users')->where('id', $user->id)->value('preferences');
+    $decoded = json_decode($dbValue, true);
+
+    expect($decoded['security']['password_timeout'])->toBe('never');
+});
+
+test('it uses default values for nested settings if key is missing', function () {
+    $user = FeatureUser::create([
+        'name' => 'Default Security User',
+        'preferences' => [
+            'theme' => 'light',
+        ],
+    ]);
+
+    expect($user->preferences->security)->toBeInstanceOf(SecuritySettings::class)
+                                        ->and($user->preferences->security->two_factor_enabled)->toBeFalse();
 });
