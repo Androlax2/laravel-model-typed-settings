@@ -220,25 +220,27 @@ describe('Lean JSON Storage (Stripping Defaults)', function () {
 });
 
 describe('Optimization & Tooling', function () {
-    test('it uses the pre-reflected property list when available', function () {
+    test('it uses the pre-reflected property list when available to hydrate models', function () {
         $cache = [
             UserPreferences::class => [
-                'properties' => ['theme', 'notifications_enabled']
+                'defaults' => ['theme' => 'light'],
+                'properties' => ['theme']
             ]
         ];
 
         Settings::setMetadataCache($cache);
 
-        expect(Settings::getMetadataFor(UserPreferences::class))
-            ->toHaveKey('properties')
-            ->and(Settings::getMetadataFor(UserPreferences::class)['properties'])
-            ->toContain('theme');
+        $settings = UserPreferences::fromArray(['theme' => 'dark', 'items_per_page' => 50]);
+
+        expect($settings->theme)->toBe('dark');
+
+        expect($settings->items_per_page)->toBe(10);
     });
 
-    test('it still works normally if the cache is empty', function () {
+    test('it still works via reflection if the cache is empty', function () {
         Settings::setMetadataCache([]);
 
-        $user = new UserPreferences(theme: 'emerald');
+        $user = UserPreferences::fromArray(['theme' => 'emerald']);
 
         expect($user->theme)->toBe('emerald');
     });

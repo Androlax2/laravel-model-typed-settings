@@ -1,6 +1,8 @@
 <?php
 
 use Androlax2\LaravelModelTypedSettings\Settings;
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\File;
 
 beforeEach(function () {
     $path = base_path('bootstrap/cache/typed-settings.php');
@@ -10,7 +12,7 @@ beforeEach(function () {
 });
 
 describe('Artisan Optimization Command', function () {
-    test('the settings:cache command generates a cache file', function () {
+    test('the settings:cache command generates a cache file with defaults and property maps', function () {
         $fakeClassPath = app_path('Settings/FakeSettings.php');
         File::ensureDirectoryExists(dirname($fakeClassPath));
 
@@ -21,6 +23,7 @@ use Androlax2\LaravelModelTypedSettings\Settings;
 
 class FakeSettings extends Settings {
     public string \$theme = 'dark';
+    public bool \$notifications = true;
 }
 PHP
         );
@@ -36,7 +39,9 @@ PHP
 
         expect($cachedData)->toHaveKey('App\Settings\FakeSettings')
                            ->and($cachedData['App\Settings\FakeSettings']['defaults'])
-                           ->toHaveKey('theme', 'dark');
+                           ->toHaveKey('theme', 'dark')
+                           ->and($cachedData['App\Settings\FakeSettings']['properties'])
+                           ->toBe(['theme', 'notifications']);
 
         File::delete($fakeClassPath);
     });
@@ -45,7 +50,8 @@ PHP
         $path = base_path('bootstrap/cache/typed-settings.php');
         $fakeData = [
             'App\Settings\FakeSettings' => [
-                'defaults' => ['theme' => 'fake_from_cache']
+                'defaults' => ['theme' => 'fake_from_cache'],
+                'properties' => ['theme']
             ]
         ];
 
@@ -54,7 +60,8 @@ PHP
 
         Settings::bootFromCache();
 
-        expect(Settings::getMetadataFor('App\Settings\FakeSettings')['defaults'])
-            ->toHaveKey('theme', 'fake_from_cache');
+        $metadata = Settings::getMetadataFor('App\Settings\FakeSettings');
+        expect($metadata['defaults'])->toHaveKey('theme', 'fake_from_cache')
+                                     ->and($metadata['properties'])->toBe(['theme']);
     });
 });
