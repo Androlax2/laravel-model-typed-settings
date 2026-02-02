@@ -16,12 +16,7 @@ class LaravelModelTypedSettingsServiceProvider extends PackageServiceProvider
          *
          * More info: https://github.com/spatie/laravel-package-tools
          */
-        $package
-            ->name('laravel-model-typed-settings')
-            ->hasConfigFile()
-            ->hasViews()
-            ->hasMigration('create_laravel_model_typed_settings_table')
-            ->hasCommand(LaravelModelTypedSettingsCommand::class);
+        $package->name('laravel-model-typed-settings');
     }
 
     public function packageBooted(): void
