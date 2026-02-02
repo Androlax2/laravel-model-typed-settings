@@ -36,6 +36,7 @@ class GenericSettingsBridge implements CastsAttributes
             $data = [];
         }
 
+        /** @var array<string, mixed> $data */
         return $this->settingsClass::fromArray($data);
     }
 
