@@ -1,0 +1,98 @@
+<?php
+
+use Androlax2\LaravelModelTypedSettings\Settings;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+
+class UserPreferences extends Settings
+{
+    public function __construct(
+        public string $theme = 'light',
+        public bool $notifications_enabled = true,
+        public int $items_per_page = 10
+    ) {}
+}
+
+class FeatureUser extends Model
+{
+    protected $guarded = [];
+
+    protected $table = 'feature_users';
+
+    public $timestamps = false;
+
+    protected $casts = [
+        'preferences' => UserPreferences::class,
+    ];
+}
+
+beforeEach(function () {
+    Schema::create('feature_users', function (Blueprint $table) {
+        $table->id();
+        $table->string('name');
+        $table->settingColumn('preferences');
+    });
+});
+
+test('it casts json to settings object', function () {
+    $user = FeatureUser::create([
+        'name' => 'John Doe',
+        'preferences' => [
+            'theme' => 'dark',
+            'notifications_enabled' => false,
+            'items_per_page' => 20,
+        ],
+    ]);
+
+    $user->refresh();
+
+    expect($user->preferences)->toBeInstanceOf(UserPreferences::class)
+        ->and($user->preferences->theme)->toBe('dark')
+        ->and($user->preferences->notifications_enabled)->toBeFalse()
+        ->and($user->preferences->items_per_page)->toBe(20);
+});
+
+test('it casts settings object to json when saving', function () {
+    $user = new FeatureUser(['name' => 'Jane Doe']);
+    $preferences = new UserPreferences('blue', true, 50);
+
+    $user->preferences = $preferences;
+    $user->save();
+
+    $dbValue = DB::table('feature_users')
+        ->where('id', $user->id)
+        ->value('preferences');
+
+    $decoded = json_decode($dbValue, true);
+
+    expect($decoded['theme'])->toBe('blue')
+        ->and($decoded['notifications_enabled'])->toBeTrue()
+        ->and($decoded['items_per_page'])->toBe(50);
+});
+
+test('it handles null values', function () {
+    $user = FeatureUser::create([
+        'name' => 'Null User',
+        'preferences' => null,
+    ]);
+
+    expect($user->preferences)->toBeInstanceOf(UserPreferences::class)
+        ->and($user->preferences->theme)->toBe('light');
+});
+
+test('it updates settings via object mutation and save', function () {
+    $user = FeatureUser::create([
+        'name' => 'Updater',
+        'preferences' => ['theme' => 'green'],
+    ]);
+
+    $prefs = $user->preferences;
+    $prefs->theme = 'red';
+    $user->preferences = $prefs;
+    $user->save();
+
+    $user->refresh();
+    expect($user->preferences->theme)->toBe('red');
+});
