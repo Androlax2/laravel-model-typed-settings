@@ -6,6 +6,20 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
+enum Frequency: string
+{
+    case Immediate = 'immediate';
+    case Daily = 'daily';
+    case Weekly = 'weekly';
+}
+
+class UserNotificationPreferences extends Settings
+{
+    public function __construct(
+        public Frequency $frequency = Frequency::Daily,
+    ) {}
+}
+
 class UserPreferences extends Settings
 {
     public function __construct(
@@ -25,6 +39,7 @@ class FeatureUser extends Model
 
     protected $casts = [
         'preferences' => UserPreferences::class,
+        'notifications' => UserNotificationPreferences::class,
     ];
 }
 
@@ -33,6 +48,7 @@ beforeEach(function () {
         $table->id();
         $table->string('name');
         $table->settingColumn('preferences');
+        $table->settingColumn('notifications');
     });
 });
 
@@ -95,4 +111,43 @@ test('it updates settings via object mutation and save', function () {
 
     $user->refresh();
     expect($user->preferences->theme)->toBe('red');
+});
+
+test('it handles frequency enums correctly', function () {
+    $user = FeatureUser::create([
+        'name' => 'Alert User',
+        'preferences' => new UserNotificationPreferences(
+            frequency: Frequency::Immediate,
+        ),
+    ]);
+
+    $user->refresh();
+    expect($user->preferences->frequency)->toBeInstanceOf(Frequency::class)
+                                         ->and($user->preferences->frequency)->toBe(Frequency::Immediate);
+
+    $dbValue = DB::table('feature_users')->where('id', $user->id)->value('preferences');
+    expect(json_decode($dbValue, true)['frequency'])->toBe('immediate');
+});
+
+test('it can update frequency using enum cases', function () {
+    $user = FeatureUser::create([
+        'name' => 'Busy User',
+        'preferences' => ['frequency' => 'immediate'],
+    ]);
+
+    $settings = $user->preferences;
+    $settings->frequency = Frequency::Weekly;
+    $user->preferences = $settings;
+    $user->save();
+
+    expect($user->fresh()->preferences->frequency)->toBe(Frequency::Weekly);
+});
+
+test('it fails when an invalid frequency string is provided', function () {
+    $this->expectException(ValueError::class);
+
+    FeatureUser::create([
+        'name' => 'Hacker User',
+        'preferences' => ['frequency' => 'hourly'],
+    ]);
 });
