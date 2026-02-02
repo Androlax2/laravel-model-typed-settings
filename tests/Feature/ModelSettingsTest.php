@@ -13,10 +13,19 @@ enum Frequency: string
     case Weekly = 'weekly';
 }
 
+enum Channel: string
+{
+    case Email = 'email';
+    case SMS = 'sms';
+    case Slack = 'slack';
+}
+
 class UserNotificationPreferences extends Settings
 {
     public function __construct(
         public Frequency $frequency = Frequency::Daily,
+        #[AsCollection(Channel::class)]
+        public array $channels = [Channel::Email]
     ) {}
 }
 
@@ -150,4 +159,41 @@ test('it fails when an invalid frequency string is provided', function () {
         'name' => 'Hacker User',
         'preferences' => ['frequency' => 'hourly'],
     ]);
+});
+
+test('it handles a collection of enums correctly', function () {
+    $user = FeatureUser::create([
+        'name' => 'Multi-Channel User',
+        'preferences' => new UserNotificationPreferences(
+            channels: [Channel::Email, Channel::Slack]
+        ),
+    ]);
+
+    $user->refresh();
+
+    expect($user->preferences->channels)->toBeArray()
+                                        ->and($user->preferences->channels)->toHaveCount(2)
+                                        ->and($user->preferences->channels[0])->toBeInstanceOf(Channel::class)
+                                        ->and($user->preferences->channels[1])->toBe(Channel::Slack);
+
+    $dbValue = DB::table('feature_users')->where('id', $user->id)->value('preferences');
+    $decoded = json_decode($dbValue, true);
+
+    expect($decoded['channels'])->toBe(['email', 'slack']);
+});
+
+test('it can sync collection of enums via array of strings', function () {
+    $user = FeatureUser::create([
+        'name' => 'Sync User',
+        'preferences' => ['channels' => ['email']],
+    ]);
+
+    $settings = $user->preferences;
+    $settings->channels = [Channel::SMS, Channel::Slack];
+    $user->preferences = $settings;
+    $user->save();
+
+    $user->refresh();
+    expect($user->preferences->channels)->toContain(Channel::SMS)
+                                        ->and($user->preferences->channels)->not->toContain(Channel::Email);
 });
