@@ -72,6 +72,9 @@ abstract class Settings implements Arrayable, Castable, Jsonable, JsonSerializab
         return static::castValue($value, $target);
     }
 
+    /**
+     * @throws ReflectionException
+     */
     protected static function castValue(mixed $value, ReflectionParameter|ReflectionProperty $target): mixed
     {
         if (static::isEnumCollection($target, $value)) {
@@ -88,7 +91,39 @@ abstract class Settings implements Arrayable, Castable, Jsonable, JsonSerializab
             return static::castToSingleEnum($target, $value);
         }
 
-        return $value;
+        $settingsClass = static::getSettingsClass($target);
+
+        if ($settingsClass) {
+            if (is_null($value)) {
+                return $target->getType()?->allowsNull() ? null : new $settingsClass();
+            }
+
+            if (is_array($value)) {
+                /** @var array<string, mixed> $value */
+                return $settingsClass::fromArray($value);
+            }
+
+            return $value;
+        }
+
+        return static::coerceValue($value, $target);
+    }
+
+    /**
+     * @return class-string<Settings>|null
+     */
+    protected static function getSettingsClass(ReflectionParameter|ReflectionProperty $target): ?string
+    {
+        $type = $target->getType();
+
+        if ($type instanceof ReflectionNamedType && ! $type->isBuiltin()) {
+            $name = $type->getName();
+            if (is_subclass_of($name, Settings::class)) {
+                return $name;
+            }
+        }
+
+        return null;
     }
 
     protected static function isEnumCollection(ReflectionParameter|ReflectionProperty $target, mixed $value): bool
@@ -202,10 +237,36 @@ abstract class Settings implements Arrayable, Castable, Jsonable, JsonSerializab
                 return $value->value;
             }
 
-            return is_array($value)
-                ? array_map(fn ($item) => $item instanceof BackedEnum ? $item->value : $item, $value)
-                : $value;
+            if ($value instanceof self) {
+                return $value->toArray();
+            }
+
+            if (is_array($value)) {
+                return array_map(function ($item) {
+                    if ($item instanceof BackedEnum) return $item->value;
+                    if ($item instanceof self) return $item->toArray();
+                    return $item;
+                }, $value);
+            }
+
+            return $value;
         }, get_object_vars($this));
+    }
+
+    protected static function coerceValue(mixed $value, ReflectionParameter|ReflectionProperty $target): mixed
+    {
+        $type = $target->getType();
+
+        if ($type instanceof ReflectionNamedType && is_string($value)) {
+            return match ($type->getName()) {
+                'int' => (int) $value,
+                'float' => (float) $value,
+                'bool' => filter_var($value, FILTER_VALIDATE_BOOLEAN),
+                default => $value,
+            };
+        }
+
+        return $value;
     }
 
     public function toJson($options = 0): string
