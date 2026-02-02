@@ -7,6 +7,7 @@ use Illuminate\Contracts\Database\Eloquent\CastsAttributes;
 use Illuminate\Database\Eloquent\Model;
 use InvalidArgumentException;
 use JsonException;
+use ReflectionException;
 
 /**
  * @implements CastsAttributes<Settings, Settings|array<string, mixed>>
@@ -20,7 +21,8 @@ class GenericSettingsBridge implements CastsAttributes
 
     /**
      * @param  string|null  $value
-     * @throws JsonException
+     *
+     * @throws JsonException|ReflectionException
      */
     public function get(Model $model, string $key, mixed $value, array $attributes): Settings
     {
@@ -41,7 +43,7 @@ class GenericSettingsBridge implements CastsAttributes
      * @param Settings|array<string, mixed>|null $value
      * @param array<string, mixed>               $attributes
      *
-     * @throws JsonException
+     * @throws JsonException|ReflectionException
      */
     public function set(Model $model, string $key, mixed $value, array $attributes): ?string
     {
