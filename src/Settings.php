@@ -230,27 +230,62 @@ abstract class Settings implements Arrayable, Castable, Jsonable, JsonSerializab
         return static::$propertyCache[static::class] = $properties;
     }
 
-    public function toArray(): array
+    /**
+     * @throws ReflectionException
+     */
+    public function toArray(bool $stripDefaults = true): array
     {
-        return array_map(function (mixed $value) {
+        $allVars = get_object_vars($this);
+
+        if ($stripDefaults) {
+            $reflection = static::getReflection();
+            $defaultInstance = $reflection->newInstanceWithoutConstructor();
+            $defaultVars = get_object_vars($defaultInstance);
+
+            if (empty($defaultVars)) {
+                $defaultInstance = static::fromArray([]);
+                $defaultVars = get_object_vars($defaultInstance);
+            }
+
+            $allVars = array_filter($allVars, function ($value, $key) use ($defaultVars) {
+                if (!array_key_exists($key, $defaultVars)) {
+                    return true;
+                }
+
+                $defaultValue = $defaultVars[$key];
+
+                if ($value instanceof self) {
+                    $result = $value->toArray();
+                    return !empty($result);
+                }
+
+                if ($value instanceof BackedEnum && $defaultValue instanceof BackedEnum) {
+                    return $value->value !== $defaultValue->value;
+                }
+
+                return $value !== $defaultValue;
+            }, ARRAY_FILTER_USE_BOTH);
+        }
+
+        return array_map(function (mixed $value) use ($stripDefaults) {
             if ($value instanceof BackedEnum) {
                 return $value->value;
             }
 
             if ($value instanceof self) {
-                return $value->toArray();
+                return $value->toArray($stripDefaults);
             }
 
             if (is_array($value)) {
-                return array_map(function ($item) {
+                return array_map(function ($item) use ($stripDefaults) {
                     if ($item instanceof BackedEnum) return $item->value;
-                    if ($item instanceof self) return $item->toArray();
+                    if ($item instanceof self) return $item->toArray($stripDefaults);
                     return $item;
                 }, $value);
             }
 
             return $value;
-        }, get_object_vars($this));
+        }, $allVars);
     }
 
     protected static function coerceValue(mixed $value, ReflectionParameter|ReflectionProperty $target): mixed
@@ -276,6 +311,7 @@ abstract class Settings implements Arrayable, Castable, Jsonable, JsonSerializab
 
     /**
      * @return array<mixed>
+     * @throws ReflectionException
      */
     public function jsonSerialize(): array
     {

@@ -60,6 +60,8 @@ class GenericSettingsBridge implements CastsAttributes
             throw new InvalidArgumentException("The given value is not an instance of {$this->settingsClass}");
         }
 
-        return json_encode($value->toArray(), JSON_THROW_ON_ERROR);
+        $data = $value->toArray();
+
+        return json_encode($data, JSON_THROW_ON_ERROR);
     }
 }
