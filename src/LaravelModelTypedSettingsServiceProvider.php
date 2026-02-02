@@ -2,9 +2,9 @@
 
 namespace Androlax2\LaravelModelTypedSettings;
 
+use Androlax2\LaravelModelTypedSettings\Commands\LaravelModelTypedSettingsCommand;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
-use Androlax2\LaravelModelTypedSettings\Commands\LaravelModelTypedSettingsCommand;
 
 class LaravelModelTypedSettingsServiceProvider extends PackageServiceProvider
 {

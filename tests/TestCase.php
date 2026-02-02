@@ -2,9 +2,9 @@
 
 namespace Androlax2\LaravelModelTypedSettings\Tests;
 
+use Androlax2\LaravelModelTypedSettings\LaravelModelTypedSettingsServiceProvider;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Orchestra\Testbench\TestCase as Orchestra;
-use Androlax2\LaravelModelTypedSettings\LaravelModelTypedSettingsServiceProvider;
 
 class TestCase extends Orchestra
 {
